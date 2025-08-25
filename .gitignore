@@ -1,0 +1,3 @@
+node_modules/
+honeypot.log
+.env
