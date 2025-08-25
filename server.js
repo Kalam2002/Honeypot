@@ -12,29 +12,18 @@ const PORT = 3000;
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 
+// Static files (UI in /public)
+app.use(express.static(path.join(__dirname, "public")));
+
 // Create a write stream for logs
 const logStream = fs.createWriteStream(path.join(__dirname, "honeypot.log"), { flags: "a" });
 
-// Log all requests with Morgan
+// Log all requests
 app.use(morgan("combined", { stream: logStream }));
 
-// Fake login page
+// Serve fake login page
 app.get("/login", (req, res) => {
-  res.send(`
-    <html>
-      <head><title>Login</title></head>
-      <body>
-        <h2>Sign In</h2>
-        <form method="POST" action="/login">
-          <label>Username:</label>
-          <input type="text" name="username" required /><br><br>
-          <label>Password:</label>
-          <input type="password" name="password" required /><br><br>
-          <button type="submit">Sign In</button>
-        </form>
-      </body>
-    </html>
-  `);
+  res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
 // Capture login attempts
@@ -52,16 +41,19 @@ app.post("/login", (req, res) => {
     location: geo
   };
 
-  // Save log
   fs.appendFileSync("honeypot.log", JSON.stringify(logData, null, 2) + "\n");
-
   console.log("🚨 Attack logged:", logData);
 
-  // Fake response
-  res.send("<h3>Invalid username or password. Try again.</h3>");
+  // Instead of error, redirect to fake banking page
+  res.redirect("/bank");
 });
 
-// Catch all routes (to log scanners / unknown access)
+// Fake banking dashboard
+app.get("/bank", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "bank.html"));
+});
+
+// Catch all unknown routes
 app.use((req, res) => {
   const ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
   const geo = geoip.lookup(ip) || {};
@@ -77,7 +69,6 @@ app.use((req, res) => {
   };
 
   fs.appendFileSync("honeypot.log", JSON.stringify(logData, null, 2) + "\n");
-
   res.status(404).send("<h3>404 Not Found</h3>");
 });
 
